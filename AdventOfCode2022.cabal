@@ -1,0 +1,103 @@
+cabal-version:       2.2
+name:                AdventOfCode2022
+version:             0.1.0.0
+synopsis:            Advent of code - Season 2022
+description:         Please see README.md
+homepage:            https://github.com/guibou/AdventOfCode2022#readme
+license:             BSD-3-Clause
+license-file:        LICENSE
+author:              Guillaume Bouchard
+maintainer:          guillaum.bouchard@gmail.com
+copyright:           2022 Guillaume Bouchard
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+
+executable alltests
+           main-is: MainAll.hs
+           hs-source-dirs: src
+           other-modules:     All, Utils, Path, Day01
+
+           build-depends:
+               base
+               , text
+               , weigh
+  default-extensions: TupleSections
+                    , DeriveAnyClass
+                    , StandaloneDeriving
+                    , DeriveGeneric
+                    , OverloadedStrings
+                    , BangPatterns
+                    , ViewPatterns
+                    , PatternSynonyms
+                    , ScopedTypeVariables
+                    , BinaryLiterals
+                    , TemplateHaskell
+                    , PartialTypeSignatures
+                    , QuasiQuotes
+                    , GeneralizedNewtypeDeriving
+                   , DerivingStrategies
+                    , FlexibleContexts
+                    , LambdaCase
+                    , TypeApplications
+                    , NamedFieldPuns
+                    , MultiWayIf
+                    , GHC2021
+  ghc-options: -Wall -Wno-missing-signatures -fwarn-incomplete-uni-patterns -Wno-missing-home-modules -Wno-deprecations -Wno-partial-type-signatures -O2 -Wno-missing-pattern-synonym-signatures
+  repl-options: -interactive-print=Text.Pretty.Simple.pPrint
+
+  build-depends:       base,
+                       hspec,
+                       megaparsec,
+                       cryptohash,
+                       base16-bytestring,
+                       bytestring,
+                       containers,
+                       parallel,
+                       time,
+                       vector,
+                       file-embed,
+                       unordered-containers,
+                       template-haskell,
+                       memoize,
+                       split,
+                       here,
+                       relude,
+                       text,
+                       union-find,
+                       hex,
+                       matrix,
+                       hashable,
+                       mtl,
+                       generic-deriving,
+                       JuicyPixels,
+                       pqueue,
+                       random,
+                       -- sbv,
+                       PyF,
+                       ansi-terminal,
+                       linear,
+                       weigh,
+                       besout,
+                       lens,
+                       generic-lens,
+                       QuickCheck,
+                       parser-combinators,
+                       Earley,
+                       monoidal-containers,
+                       pretty-simple,
+                       monad-memo,
+                       optics-core,
+                       directory,
+                       process
+  -- Set relude (with extra) as the default prelude
+  mixins: base hiding (Prelude)
+        , relude (Relude as Prelude
+                 , Relude.Extra
+                 , Relude.Unsafe
+                 )
+
+
+source-repository head
+  type:     git
+  location: https://github.com/guibou/AdventOfCode2022
