@@ -75,3 +75,4 @@ test = do
 
 --
 -- Start: 23:03
+-- End of both stars with live viewer yada: 23:30
