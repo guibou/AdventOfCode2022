@@ -16,7 +16,7 @@ extra-source-files:  README.md
 executable alltests
            main-is: MainAll.hs
            hs-source-dirs: src
-           other-modules:     All, Utils, Path, Day01, Day02
+           other-modules:     All, Utils, Path, Day01, Day02, Day03
 
            build-depends:
                base
