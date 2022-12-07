@@ -1,12 +1,7 @@
 module Day04 where
 
 import Utils
-import qualified Relude.Unsafe as Unsafe
-import Relude.Extra
-import qualified Data.Text as Text
-import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Text.Megaparsec
 
 fileContent :: _
 fileContent = parseContent $(getFile)
@@ -16,7 +11,7 @@ parseContent = unsafeParse parseElfs
 
 -- * Generics
 
-parseRange = (,) <$> parseNumber <*> ("-" *> parseNumber)
+parseRange = (,) <$> parseNumber @Int <*> ("-" *> parseNumber)
 parseTwoElfs = (,) <$> parseRange <*> ("," *> parseRange)
 
 parseElfs = Prelude.some (parseTwoElfs <* "\n")

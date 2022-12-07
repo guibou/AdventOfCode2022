@@ -4,12 +4,8 @@ module Day05 where
 
 import Utils
 import qualified Relude.Unsafe as Unsafe
-import Relude.Extra
 import qualified Data.Text as Text
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Vector as Vector
-import Text.Megaparsec
 
 fileContent :: _
 fileContent = parseContent $(getFile)
@@ -51,26 +47,10 @@ day' (stacks, actions) = let
   in map (Unsafe.head) (Vector.toList finalStack)
 
 -- * Tests
-ex_stacks' = [fmt|\
-    [D]    
-[N] [C]    
-[Z] [M] [P]
- 1   2   3 
-|]
-
-ex_stacks = Vector.fromList ["NZ", "DCM", "P"]
-
-ex_actions = unsafeParse (Prelude.many parseAction) [fmt|\
-move 1 from 2 to 1
-move 3 from 1 to 3
-move 2 from 2 to 1
-move 1 from 1 to 2
-|]
-
 trim (' ':xs) = trim xs
 trim o = o
 
-parseStacks t = Vector.fromList $ map trim $ transpose $ map (map snd . filter (\(p, c) -> p) . zip (cycle [True, False, False, False]) . drop 1 . Text.unpack) (Text.lines t)
+parseStacks t = Vector.fromList $ map trim $ transpose $ map (map snd . filter (\(p, _c) -> p) . zip (cycle [True, False, False, False]) . drop 1 . Text.unpack) (Text.lines t)
 
 ex = parseContent [fmt|\
     [D]    

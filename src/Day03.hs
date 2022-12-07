@@ -2,11 +2,8 @@ module Day03 where
 
 import Utils
 import qualified Relude.Unsafe as Unsafe
-import Relude.Extra
 import qualified Data.Text as Text
-import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Text.Megaparsec
 
 fileContent :: _
 fileContent = parseContent $(getFile)
@@ -23,8 +20,7 @@ parseContent s = map f (Text.lines s)
 
 parseContent' :: Text -> _
 parseContent' s = let
-  lines = Text.lines s
-  badges = (map computeBadge $ chunksOf 3 lines)
+  badges = (map computeBadge $ chunksOf 3 $ Text.lines s)
   in badges
 
 computeBadge l = let
