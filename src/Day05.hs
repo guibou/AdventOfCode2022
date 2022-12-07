@@ -34,17 +34,15 @@ parseAction = do
   pure $ Action{..}
 
 -- * Generics
-
+solve f (stacks, actions) =  let
+  finalStack = foldl' (flip f) stacks actions
+  in map (Unsafe.head) (Vector.toList finalStack)
 
 -- * FIRST problem
-day (stacks, actions) = let
-  finalStack = foldl' (flip applyAction) stacks actions
-  in map (Unsafe.head) (Vector.toList finalStack)
+day = solve applyAction
 
 -- * SECOND problem
-day' (stacks, actions) = let
-  finalStack = foldl' (flip applyAction') stacks actions
-  in map (Unsafe.head) (Vector.toList finalStack)
+day' = solve applyAction'
 
 -- * Tests
 trim (' ':xs) = trim xs

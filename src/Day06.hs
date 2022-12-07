@@ -7,25 +7,18 @@ fileContent :: _
 fileContent = $(getFile)
 
 -- * Generics
-
+solve n content = let
+  (s, xs) = splitAt n content
+  go s (xs:xss) offset
+    | length (nub s) == n = offset
+    | otherwise = go (drop 1 s ++ [xs]) xss (offset + 1)
+  in go s xs n
 
 -- * FIRST problem
-day content = let
-  (s, xs) = splitAt 4 content
-  go s (xs:xss) offset
-    | length (nub s) == 4 = offset
-    | otherwise = go (drop 1 s ++ [xs]) xss (offset + 1)
-  in go s xs 4
-
-
-day' content = let
-  (s, xs) = splitAt 14 content
-  go s (xs:xss) offset
-    | length (nub s) == 14 = offset
-    | otherwise = go (drop 1 s ++ [xs]) xss (offset + 1)
-  in go s xs 14
+day = solve 4
 
 -- * SECOND problem
+day' = solve 14
 
 -- * Tests
 ex = "mjqjpqmgbljsphdztnvjfqwrcgsmlb"
