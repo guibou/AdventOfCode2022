@@ -1,7 +1,6 @@
 module Day04 where
 
 import Utils
-import qualified Data.Set as Set
 
 fileContent :: _
 fileContent = parseContent $(getFile)
@@ -16,18 +15,14 @@ parseTwoElfs = (,) <$> parseRange <*> ("," *> parseRange)
 
 parseElfs = Prelude.some (parseTwoElfs <* "\n")
 
-isFullyContained ((a, b), (c, d)) = 
-  let
-    s0 = Set.fromList [a..b]
-    s1 = Set.fromList [c..d]
-  in null (s0 `Set.difference` s1) ||
-     null (s1 `Set.difference` s0)
+isFullyContained (r0, r1) = test r0 r1 || test r1 r0
+  where
+    test (a, b) (c, d) = a >= c && b <= d
 
-isOvelapping ((a, b), (c, d)) = 
-  let
-    s0 = Set.fromList [a..b]
-    s1 = Set.fromList [c..d]
-  in not $ null (s0 `Set.intersection` s1)
+isOvelapping (r0, r1) = isFullyContained (r0, r1) || test r0 r1 || test r1 r0
+  where 
+    test (a, b) (c, d) = (a >= c && a <= d) || (b >= c && b <= d)
+
 
 -- * FIRST problem
 day l = length $ filter isFullyContained l
