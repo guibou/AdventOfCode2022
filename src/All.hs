@@ -10,6 +10,7 @@ import Day05
 import Day06
 import Day07
 import Day08
+import Day09
 
 import Weigh
 
