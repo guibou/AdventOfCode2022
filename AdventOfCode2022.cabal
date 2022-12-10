@@ -43,7 +43,7 @@ executable alltests
                     , NamedFieldPuns
                     , MultiWayIf
                     , GHC2021
-  ghc-options: -Wall -Wno-missing-signatures -fwarn-incomplete-uni-patterns -Wno-missing-home-modules -Wno-deprecations -Wno-partial-type-signatures -O2 -Wno-missing-pattern-synonym-signatures
+  ghc-options: -Wall -Wno-missing-signatures -fwarn-incomplete-uni-patterns -Wno-missing-home-modules -Wno-deprecations -Wno-partial-type-signatures -O2 -Wno-missing-pattern-synonym-signatures -eventlog -rtsopts -finfo-table-map -fdistinct-constructor-tables
   repl-options: -interactive-print=Text.Pretty.Simple.pPrint
 
   build-depends:       base,

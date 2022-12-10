@@ -33,7 +33,7 @@ moveHead (x, y) L = (x-1, y)
 moveHead (x, y) U = (x, y-1)
 moveHead (x, y) D = (x, y+1)
 
-moveHeadAndTail (head:tail) step = (head':tail')
+moveHeadAndTail (head, tail) step = (head', tail')
  where
    head' = moveHead head step
    tail' = followHeads head' tail
@@ -53,13 +53,14 @@ followHead (hx, hy) (tx, ty)
     dy = hy - ty
 
 -- * FIRST problem
-move n steps = scanl moveHeadAndTail (replicate n (0 :: Int, 0)) steps
+move n = scanl moveHeadAndTail ((0, 0), replicate (n-1) (0 :: Int, 0))
 
+solve n = Set.size . Set.fromList . map (Unsafe.last . snd) . move n
 -- * SECOND problem
 day :: _ -> Int
-day = Set.size . Set.fromList . map (Unsafe.last) . move 2
+day = solve 2
 
-day' = Set.size . Set.fromList . map (Unsafe.last) . move 10
+day' = solve 10
 -- * Tests
 
 ex = parseContent [fmt|\
