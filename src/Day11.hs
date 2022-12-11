@@ -33,10 +33,10 @@ parseMonkey = do
   id <- parseNumber
   void ":"
   void "\n  Starting items: "
-  startingItems <- (toModular <$> parseNumber) `sepBy` ", "
+  startingItems <- reverse <$> (toModular <$> parseNumber) `sepBy` ", "
   void "\n  Operation: new = old "
   operator <- ("* " $> Mul) <|> ("+ " $> Add)
-  operand <- Just <$> parseNumber <|> (Nothing <$ "old")
+  operand <- Just <$> (toModular <$> parseNumber) <|> (Nothing <$ "old")
   let operation = (operator, operand)
   void "\n  Test: divisible by "
   test <- parseNumber
@@ -74,7 +74,8 @@ instance FunnyNumber Modular where
     -- n <- [17, 3, 5, 7, 11, 19, 2, 13]
     -- n <- [23, 19, 13, 17]
     n <- [1, 17, 3, 5, 7, 11, 19, 2, 13] <> [23]
-    pure (n, o `mod` n)
+    let !val = o `mod` n
+    pure (n, val)
   isMod (Modular idx) n = idx Map.! n == 0
 
 instance FunnyNumber Int where
@@ -89,8 +90,8 @@ instance FunnyNumber Int where
 data Monkey n = Monkey 
   { id :: Int,
     startingItems :: [n],
-    countOperations :: Int,
-    operation :: (Operation, Maybe Int),
+    countOperations :: !Int,
+    operation :: (Operation, Maybe n),
     test :: Int,
     ifTrue :: Int,
     ifFalse :: Int
@@ -107,13 +108,14 @@ round monkeys = foldl' monkeyRound monkeys [0 .. Data.List.maximum (Map.keys mon
 
 monkeyRound :: FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
 monkeyRound monkies monkeyNo = do
-  foldl' (processItem currentMonkey) (over (ix monkeyNo . #countOperations) (+length items) $ set (ix monkeyNo . #startingItems) [] monkies) items
+  foldl' (processItem currentMonkey) currentMonkey' items
   where
+    !currentMonkey' = over (ix monkeyNo . #countOperations) (+length items) $ set (ix monkeyNo . #startingItems) [] monkies
     currentMonkey = monkies Map.! monkeyNo
-    items = currentMonkey.startingItems
+    items = reverse $ currentMonkey.startingItems
 
 processItem :: FunnyNumber n => Monkey n -> Map Int (Monkey n) -> n -> Map Int (Monkey n)
-processItem monkey monkies item = over (ix throwTo . #startingItems) (++[item']) monkies
+processItem monkey monkies item = over (ix throwTo . #startingItems) (item':) monkies
   where
     item' = div3 (applyOp monkey.operation item)
     throwTo =
@@ -121,12 +123,12 @@ processItem monkey monkies item = over (ix throwTo . #startingItems) (++[item'])
         then monkey.ifTrue
         else monkey.ifFalse
 
-applyOp :: FunnyNumber n => (Operation, Maybe Int) -> n -> n
+applyOp :: FunnyNumber n => (Operation, Maybe n) -> n -> n
 applyOp (op, val') x = case op of
   Add -> x `modularAdd` val
   Mul -> x `modularMul` val
   where
-    val = maybe x toModular val'
+    val = fromMaybe x val'
 
 nRounds :: FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
 nRounds monkies 0 = monkies
