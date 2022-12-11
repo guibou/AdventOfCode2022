@@ -7,25 +7,22 @@
 {-# LANGUAGE NoFieldSelectors #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Day11 where
+module Day11 (test) where
 
 import Control.Exception (assert)
-import Control.Lens (ix, over, set)
+import Control.Lens (ix, over)
 import Data.Generics.Labels ()
-import Data.List qualified
-import Data.Map qualified as Map
+import Data.Vector qualified as Vector
 import Text.Megaparsec
 import Utils hiding (over, set)
 
-fileContent :: FunnyNumber n => Map Int (Monkey n)
+fileContent :: FunnyNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
 fileContent = parseContent $(getFile)
 
-parseContent :: FunnyNumber n => Text -> Map Int (Monkey n)
-parseContent = toMonkeyMap . unsafeParse ((parseMonkey `sepBy` "\n\n") <* "\n")
-
-toMonkeyMap monkies = Map.fromList $ do
-  monkey <- monkies
-  pure (monkey.id, monkey)
+parseContent :: FunnyNumber n => Text -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+parseContent t =
+  let (attrs, status) = unzip $ unsafeParse ((parseMonkey `sepBy` "\n\n") <* "\n") t
+   in (Vector.fromList attrs, Vector.fromList status)
 
 parseMonkey :: FunnyNumber n => Parser (Monkey n)
 parseMonkey = do
@@ -47,14 +44,12 @@ parseMonkey = do
 
   let countOperations = 0
 
-  pure $ assert (ifTrue /= id && ifFalse /= id) $ Monkey {..}
+  pure $ assert (ifTrue /= id && ifFalse /= id) (MonkeyAttributes {..}, MonkeyStatus {..})
 
 -- * Generics Modular Arithmetic
 
-newtype Modular = Modular (Map Int Int)
-  deriving (Show, Generic, NFData)
-
-modularLift op (Modular m) (Modular m') = Modular $ Map.unionWithKey (\k x y -> (x `op` y) `mod` k) m m'
+newtype Modular = Modular Int
+  deriving (Show)
 
 class FunnyNumber n where
   modularAdd :: n -> n -> n
@@ -64,19 +59,14 @@ class FunnyNumber n where
   toModular :: Int -> n
 
 instance FunnyNumber Modular where
-  modularAdd = modularLift (+)
+  modularAdd (Modular a) (Modular b) = Modular (a + b)
 
-  modularMul = modularLift (*)
+  modularMul (Modular a) (Modular b) = Modular (a * b)
 
-  div3 = id
+  div3 (Modular m) = Modular (m`mod` (17* 3* 5* 7* 11* 19* 2* 13 * 23))
 
-  toModular o = Modular $ Map.fromList $ do
-    -- n <- [17, 3, 5, 7, 11, 19, 2, 13]
-    -- n <- [23, 19, 13, 17]
-    n <- [1, 17, 3, 5, 7, 11, 19, 2, 13] <> [23]
-    let !val = o `mod` n
-    pure (n, val)
-  isMod (Modular idx) n = idx Map.! n == 0
+  toModular = Modular
+  isMod (Modular idx) n = idx `mod` n == 0
 
 instance FunnyNumber Int where
   modularAdd = (+)
@@ -87,35 +77,50 @@ instance FunnyNumber Int where
 
 -- * Monkey definition
 
-data Monkey n = Monkey
+data MonkeyAttributes n = MonkeyAttributes
   { id :: Int,
-    startingItems :: [n],
-    countOperations :: !Int,
     operation :: (Operation, Maybe n),
     test :: Int,
     ifTrue :: Int,
     ifFalse :: Int
   }
-  deriving (Show, Generic, NFData)
+  deriving (Show, Generic)
+
+data MonkeyStatus n = MonkeyStatus
+  { startingItems :: ![n],
+    countOperations :: !Int
+  }
+  deriving (Show, Generic)
+
+type Monkey n = (MonkeyAttributes n, MonkeyStatus n)
 
 data Operation = Add | Mul
-  deriving (Show, NFData, Generic)
+  deriving (Show, Generic)
 
 -- * FIRST problem
 
-round :: NFData n => FunnyNumber n => Map Int (Monkey n) -> Map Int (Monkey n)
-round monkeys = foldl' monkeyRound monkeys [0 .. Data.List.maximum (Map.keys monkeys)]
+round :: FunnyNumber n => Vector (MonkeyAttributes n) -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+round attrs status = foldl' (flip $ monkeyRound attrs) status [0 .. Vector.length attrs - 1]
 
-monkeyRound :: (FunnyNumber n, NFData n) => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
-monkeyRound monkies monkeyNo = do
-  force $ foldl' (processItem currentMonkey) currentMonkey' items
+monkeyRound :: FunnyNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+monkeyRound attrs monkeyNo status = do
+  foldl' (processItem currentMonkey) status' items
   where
-    !currentMonkey' = over (ix monkeyNo . #countOperations) (+ length items) $ set (ix monkeyNo . #startingItems) [] monkies
-    currentMonkey = monkies Map.! monkeyNo
-    items = reverse $ currentMonkey.startingItems
+    status' =
+      over
+        (ix monkeyNo)
+        ( \currentMonkey ->
+            currentMonkey
+              { countOperations = currentMonkey.countOperations + length items,
+                startingItems = []
+              }
+        )
+        status
+    currentMonkey = attrs Vector.! monkeyNo
+    items = reverse $ (status Vector.! monkeyNo).startingItems
 
-processItem :: FunnyNumber n => Monkey n -> Map Int (Monkey n) -> n -> Map Int (Monkey n)
-processItem monkey monkies item = over (ix throwTo . #startingItems) (item' :) monkies
+processItem :: FunnyNumber n => MonkeyAttributes n -> Vector (MonkeyStatus n) -> n -> Vector (MonkeyStatus n)
+processItem monkey status item = over (ix throwTo . #startingItems) (item' :) status
   where
     item' = div3 (applyOp monkey.operation item)
     throwTo =
@@ -130,27 +135,24 @@ applyOp (op, val') x = case op of
   where
     val = fromMaybe x val'
 
-nRounds :: NFData n => FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
-nRounds monkies 0 = monkies
-nRounds monkies n = do
-  let monkies' = Day11.round monkies
-  nRounds monkies' (n - 1)
+nRounds :: FunnyNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+nRounds _attrs 0 status = status
+nRounds attrs n status = do
+  let status' = Day11.round attrs status
+  nRounds attrs (n - 1) status'
 
-solve :: forall n. NFData n => FunnyNumber n => Int -> Map Int (Monkey n) -> Int
-solve n monkies = product $ take 2 $ reverse $ sort $ Map.elems $ fmap (.countOperations) $ nRounds monkies n
+solve :: forall n. FunnyNumber n => Int -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n)) -> Int
+solve n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds attrs n status
 
 day = solve @Int 20
 
 day' = solve @Modular 10000
 
-countOps :: Monkey n -> Int
-countOps = length . (.startingItems)
-
 -- * SECOND problem
 
 -- * Tests
 
-ex :: FunnyNumber n => Map Int (Monkey n)
+ex :: FunnyNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
 ex =
   parseContent
     [fmt|\
