@@ -10,7 +10,7 @@
 module Day11 (test) where
 
 import Control.Exception (assert)
-import Control.Lens (ix, over)
+import Control.Lens (ix, over, _1)
 import Data.Generics.Labels ()
 import Data.Vector qualified as Vector
 import Text.Megaparsec
@@ -24,6 +24,8 @@ parseContent t =
   let (attrs, status) = unzip $ unsafeParse ((parseMonkey `sepBy` "\n\n") <* "\n") t
    in (Vector.fromList attrs, Vector.fromList status)
 
+data Operator = Add | Mul
+
 parseMonkey :: Parser Monkey
 parseMonkey = do
   void "Monkey "
@@ -34,7 +36,9 @@ parseMonkey = do
   void "\n  Operation: new = old "
   operator <- ("* " $> Mul) <|> ("+ " $> Add)
   operand <- Just <$> parseNumber <|> (Nothing <$ "old")
-  let operation = (operator, operand)
+  let operation = case operator of
+        Mul -> \x -> x * fromMaybe x operand
+        Add -> \x -> x + fromMaybe x operand
   void "\n  Test: divisible by "
   test <- parseNumber
   void "\n    If true: throw to monkey "
@@ -58,12 +62,12 @@ reduceWorryLevelDiv3 = (`div` 3)
 
 data MonkeyAttributes = MonkeyAttributes
   { id :: Int,
-    operation :: (Operation, Maybe Int),
+    operation :: Int -> Int,
     test :: Int,
     ifTrue :: Int,
     ifFalse :: Int
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 data MonkeyStatus = MonkeyStatus
   { startingItems :: ![Int],
@@ -73,17 +77,14 @@ data MonkeyStatus = MonkeyStatus
 
 type Monkey = (MonkeyAttributes, MonkeyStatus)
 
-data Operation = Add | Mul
-  deriving (Show, Generic)
-
 -- * FIRST problem
 
-round :: (Int -> Int) -> Vector MonkeyAttributes -> Vector MonkeyStatus -> Vector MonkeyStatus
-round reduceWorryLevel attrs status = foldl' (flip $ monkeyRound reduceWorryLevel attrs) status [0 .. Vector.length attrs - 1]
+round :: Vector MonkeyAttributes -> Vector MonkeyStatus -> Vector MonkeyStatus
+round attrs status = foldl' (flip $ monkeyRound attrs) status [0 .. Vector.length attrs - 1]
 
-monkeyRound :: (Int -> Int) -> Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
-monkeyRound reduceWorryLevel attrs monkeyNo status = do
-  foldl' (processItem reduceWorryLevel currentMonkey) status' items
+monkeyRound :: Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
+monkeyRound attrs monkeyNo status = do
+  foldl' (processItem currentMonkey) status' items
   where
     status' =
       over
@@ -98,34 +99,27 @@ monkeyRound reduceWorryLevel attrs monkeyNo status = do
     currentMonkey = attrs Vector.! monkeyNo
     items = reverse $ (status Vector.! monkeyNo).startingItems
 
-processItem :: (Int -> Int) -> MonkeyAttributes -> Vector MonkeyStatus -> Int -> Vector MonkeyStatus
-processItem reduceWorryLevel monkey status item = over (ix throwTo . #startingItems) (item' :) status
+processItem :: MonkeyAttributes -> Vector MonkeyStatus -> Int -> Vector MonkeyStatus
+processItem monkey status item = over (ix throwTo . #startingItems) (item' :) status
   where
-    item' = reduceWorryLevel (applyOp monkey.operation item)
+    item' = monkey.operation item
     throwTo =
       if item' `mod` monkey.test == 0
         then monkey.ifTrue
         else monkey.ifFalse
 
-applyOp :: (Operation, Maybe Int) -> Int -> Int
-applyOp (op, val') x = case op of
-  Add -> x + val
-  Mul -> x * val
-  where
-    val = fromMaybe x val'
+nRounds :: Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
+nRounds _attrs 0 status = status
+nRounds attrs n status = do
+  let status' = Day11.round attrs status
+  nRounds attrs (n - 1) status'
 
-nRounds :: (Int -> Int) -> Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
-nRounds _ _attrs 0 status = status
-nRounds reduceWorryLevel attrs n status = do
-  let status' = Day11.round reduceWorryLevel attrs status
-  nRounds reduceWorryLevel attrs (n - 1) status'
+solve :: Int -> (Vector MonkeyAttributes, Vector MonkeyStatus) -> Int
+solve n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds attrs n status
 
-solve :: (Int -> Int) -> Int -> (Vector MonkeyAttributes, Vector MonkeyStatus) -> Int
-solve reduceWorryLevel n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds reduceWorryLevel attrs n status
+day = solve 20 . over (_1 . traverse . #operation) (reduceWorryLevelDiv3 .)
 
-day = solve reduceWorryLevelDiv3 20
-
-day' = solve reduceWorryLevelLarge 10000
+day' = solve 10000 . over (_1 . traverse . #operation) (reduceWorryLevelLarge .)
 
 -- * SECOND problem
 
