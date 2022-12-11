@@ -16,24 +16,24 @@ import Data.Vector qualified as Vector
 import Text.Megaparsec
 import Utils hiding (over, set)
 
-fileContent :: WorryNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+fileContent :: (Vector MonkeyAttributes, Vector MonkeyStatus)
 fileContent = parseContent $(getFile)
 
-parseContent :: WorryNumber n => Text -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+parseContent :: Text -> (Vector MonkeyAttributes, Vector MonkeyStatus)
 parseContent t =
   let (attrs, status) = unzip $ unsafeParse ((parseMonkey `sepBy` "\n\n") <* "\n") t
    in (Vector.fromList attrs, Vector.fromList status)
 
-parseMonkey :: WorryNumber n => Parser (Monkey n)
+parseMonkey :: Parser Monkey
 parseMonkey = do
   void "Monkey "
   id <- parseNumber
   void ":"
   void "\n  Starting items: "
-  startingItems <- reverse <$> (toWorryNumber <$> parseNumber) `sepBy` ", "
+  startingItems <- reverse <$> parseNumber `sepBy` ", "
   void "\n  Operation: new = old "
   operator <- ("* " $> Mul) <|> ("+ " $> Add)
-  operand <- Just <$> (toWorryNumber <$> parseNumber) <|> (Nothing <$ "old")
+  operand <- Just <$> parseNumber <|> (Nothing <$ "old")
   let operation = (operator, operand)
   void "\n  Test: divisible by "
   test <- parseNumber
@@ -46,65 +46,44 @@ parseMonkey = do
 
   pure $ assert (ifTrue /= id && ifFalse /= id) (MonkeyAttributes {..}, MonkeyStatus {..})
 
--- * Generics Modular Arithmetic
+-- * Generics
 
-newtype Modular = Modular Int
-  deriving (Show)
+reduceWorryLevelLarge :: Int -> Int
+reduceWorryLevelLarge m = m `mod` (17 * 3 * 5 * 7 * 11 * 19 * 2 * 13 * 23)
 
-class WorryNumber n where
-  add :: n -> n -> n
-  mul :: n -> n -> n
-  reduceWorryLevel :: n -> n
-  isMod :: n -> Int -> Bool
-  toWorryNumber :: Int -> n
-
-instance WorryNumber Modular where
-  add (Modular a) (Modular b) = Modular (a + b)
-
-  mul (Modular a) (Modular b) = Modular (a * b)
-
-  reduceWorryLevel (Modular m) = Modular (m`mod` (17* 3* 5* 7* 11* 19* 2* 13 * 23))
-
-  toWorryNumber = Modular
-  isMod (Modular idx) n = idx `mod` n == 0
-
-instance WorryNumber Int where
-  add = (+)
-  mul = (*)
-  reduceWorryLevel = (`div` 3)
-  toWorryNumber = id
-  isMod a b = a `mod` b == 0
+reduceWorryLevelDiv3 :: Int -> Int
+reduceWorryLevelDiv3 = (`div` 3)
 
 -- * Monkey definition
 
-data MonkeyAttributes n = MonkeyAttributes
+data MonkeyAttributes = MonkeyAttributes
   { id :: Int,
-    operation :: (Operation, Maybe n),
+    operation :: (Operation, Maybe Int),
     test :: Int,
     ifTrue :: Int,
     ifFalse :: Int
   }
   deriving (Show, Generic)
 
-data MonkeyStatus n = MonkeyStatus
-  { startingItems :: ![n],
+data MonkeyStatus = MonkeyStatus
+  { startingItems :: ![Int],
     countOperations :: !Int
   }
   deriving (Show, Generic)
 
-type Monkey n = (MonkeyAttributes n, MonkeyStatus n)
+type Monkey = (MonkeyAttributes, MonkeyStatus)
 
 data Operation = Add | Mul
   deriving (Show, Generic)
 
 -- * FIRST problem
 
-round :: WorryNumber n => Vector (MonkeyAttributes n) -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
-round attrs status = foldl' (flip $ monkeyRound attrs) status [0 .. Vector.length attrs - 1]
+round :: (Int -> Int) -> Vector MonkeyAttributes -> Vector MonkeyStatus -> Vector MonkeyStatus
+round reduceWorryLevel attrs status = foldl' (flip $ monkeyRound reduceWorryLevel attrs) status [0 .. Vector.length attrs - 1]
 
-monkeyRound :: WorryNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
-monkeyRound attrs monkeyNo status = do
-  foldl' (processItem currentMonkey) status' items
+monkeyRound :: (Int -> Int) -> Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
+monkeyRound reduceWorryLevel attrs monkeyNo status = do
+  foldl' (processItem reduceWorryLevel currentMonkey) status' items
   where
     status' =
       over
@@ -119,40 +98,40 @@ monkeyRound attrs monkeyNo status = do
     currentMonkey = attrs Vector.! monkeyNo
     items = reverse $ (status Vector.! monkeyNo).startingItems
 
-processItem :: WorryNumber n => MonkeyAttributes n -> Vector (MonkeyStatus n) -> n -> Vector (MonkeyStatus n)
-processItem monkey status item = over (ix throwTo . #startingItems) (item' :) status
+processItem :: (Int -> Int) -> MonkeyAttributes -> Vector MonkeyStatus -> Int -> Vector MonkeyStatus
+processItem reduceWorryLevel monkey status item = over (ix throwTo . #startingItems) (item' :) status
   where
     item' = reduceWorryLevel (applyOp monkey.operation item)
     throwTo =
-      if item' `isMod` monkey.test
+      if item' `mod` monkey.test == 0
         then monkey.ifTrue
         else monkey.ifFalse
 
-applyOp :: WorryNumber n => (Operation, Maybe n) -> n -> n
+applyOp :: (Operation, Maybe Int) -> Int -> Int
 applyOp (op, val') x = case op of
-  Add -> x `add` val
-  Mul -> x `mul` val
+  Add -> x + val
+  Mul -> x * val
   where
     val = fromMaybe x val'
 
-nRounds :: WorryNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
-nRounds _attrs 0 status = status
-nRounds attrs n status = do
-  let status' = Day11.round attrs status
-  nRounds attrs (n - 1) status'
+nRounds :: (Int -> Int) -> Vector MonkeyAttributes -> Int -> Vector MonkeyStatus -> Vector MonkeyStatus
+nRounds _ _attrs 0 status = status
+nRounds reduceWorryLevel attrs n status = do
+  let status' = Day11.round reduceWorryLevel attrs status
+  nRounds reduceWorryLevel attrs (n - 1) status'
 
-solve :: forall n. WorryNumber n => Int -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n)) -> Int
-solve n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds attrs n status
+solve :: (Int -> Int) -> Int -> (Vector MonkeyAttributes, Vector MonkeyStatus) -> Int
+solve reduceWorryLevel n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds reduceWorryLevel attrs n status
 
-day = solve @Int 20
+day = solve reduceWorryLevelDiv3 20
 
-day' = solve @Modular 10000
+day' = solve reduceWorryLevelLarge 10000
 
 -- * SECOND problem
 
 -- * Tests
 
-ex :: WorryNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+ex :: (Vector MonkeyAttributes, Vector MonkeyStatus)
 ex =
   parseContent
     [fmt|\
