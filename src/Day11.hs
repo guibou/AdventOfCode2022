@@ -1,21 +1,21 @@
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 -- Start at 10:11
 -- First at 10:55
 -- Second at 11:17
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Day11 where
 
 import Control.Exception (assert)
+import Control.Lens (ix, over, set)
+import Data.Generics.Labels ()
 import Data.List qualified
 import Data.Map qualified as Map
 import Text.Megaparsec
-import Utils hiding (set, over)
-import Control.Lens (ix, over, set)
-import Data.Generics.Labels ()
+import Utils hiding (over, set)
 
 fileContent :: FunnyNumber n => Map Int (Monkey n)
 fileContent = parseContent $(getFile)
@@ -52,7 +52,7 @@ parseMonkey = do
 -- * Generics Modular Arithmetic
 
 newtype Modular = Modular (Map Int Int)
-  deriving (Show)
+  deriving (Show, Generic, NFData)
 
 modularLift op (Modular m) (Modular m') = Modular $ Map.unionWithKey (\k x y -> (x `op` y) `mod` k) m m'
 
@@ -81,13 +81,13 @@ instance FunnyNumber Modular where
 instance FunnyNumber Int where
   modularAdd = (+)
   modularMul = (*)
-  div3 = (`div`3)
+  div3 = (`div` 3)
   toModular = id
   isMod a b = a `mod` b == 0
 
 -- * Monkey definition
 
-data Monkey n = Monkey 
+data Monkey n = Monkey
   { id :: Int,
     startingItems :: [n],
     countOperations :: !Int,
@@ -96,26 +96,26 @@ data Monkey n = Monkey
     ifTrue :: Int,
     ifFalse :: Int
   }
-  deriving (Show, Generic)
+  deriving (Show, Generic, NFData)
 
 data Operation = Add | Mul
-  deriving (Show)
+  deriving (Show, NFData, Generic)
 
 -- * FIRST problem
 
-round :: FunnyNumber n => Map Int (Monkey n) -> Map Int (Monkey n)
+round :: NFData n => FunnyNumber n => Map Int (Monkey n) -> Map Int (Monkey n)
 round monkeys = foldl' monkeyRound monkeys [0 .. Data.List.maximum (Map.keys monkeys)]
 
-monkeyRound :: FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
+monkeyRound :: (FunnyNumber n, NFData n) => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
 monkeyRound monkies monkeyNo = do
-  foldl' (processItem currentMonkey) currentMonkey' items
+  force $ foldl' (processItem currentMonkey) currentMonkey' items
   where
-    !currentMonkey' = over (ix monkeyNo . #countOperations) (+length items) $ set (ix monkeyNo . #startingItems) [] monkies
+    !currentMonkey' = over (ix monkeyNo . #countOperations) (+ length items) $ set (ix monkeyNo . #startingItems) [] monkies
     currentMonkey = monkies Map.! monkeyNo
     items = reverse $ currentMonkey.startingItems
 
 processItem :: FunnyNumber n => Monkey n -> Map Int (Monkey n) -> n -> Map Int (Monkey n)
-processItem monkey monkies item = over (ix throwTo . #startingItems) (item':) monkies
+processItem monkey monkies item = over (ix throwTo . #startingItems) (item' :) monkies
   where
     item' = div3 (applyOp monkey.operation item)
     throwTo =
@@ -130,13 +130,13 @@ applyOp (op, val') x = case op of
   where
     val = fromMaybe x val'
 
-nRounds :: FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
+nRounds :: NFData n => FunnyNumber n => Map Int (Monkey n) -> Int -> Map Int (Monkey n)
 nRounds monkies 0 = monkies
 nRounds monkies n = do
   let monkies' = Day11.round monkies
   nRounds monkies' (n - 1)
 
-solve :: forall n. FunnyNumber n => Int -> Map Int (Monkey n) -> Int
+solve :: forall n. NFData n => FunnyNumber n => Int -> Map Int (Monkey n) -> Int
 solve n monkies = product $ take 2 $ reverse $ sort $ Map.elems $ fmap (.countOperations) $ nRounds monkies n
 
 day = solve @Int 20
