@@ -16,24 +16,24 @@ import Data.Vector qualified as Vector
 import Text.Megaparsec
 import Utils hiding (over, set)
 
-fileContent :: FunnyNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+fileContent :: WorryNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
 fileContent = parseContent $(getFile)
 
-parseContent :: FunnyNumber n => Text -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+parseContent :: WorryNumber n => Text -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
 parseContent t =
   let (attrs, status) = unzip $ unsafeParse ((parseMonkey `sepBy` "\n\n") <* "\n") t
    in (Vector.fromList attrs, Vector.fromList status)
 
-parseMonkey :: FunnyNumber n => Parser (Monkey n)
+parseMonkey :: WorryNumber n => Parser (Monkey n)
 parseMonkey = do
   void "Monkey "
   id <- parseNumber
   void ":"
   void "\n  Starting items: "
-  startingItems <- reverse <$> (toModular <$> parseNumber) `sepBy` ", "
+  startingItems <- reverse <$> (toWorryNumber <$> parseNumber) `sepBy` ", "
   void "\n  Operation: new = old "
   operator <- ("* " $> Mul) <|> ("+ " $> Add)
-  operand <- Just <$> (toModular <$> parseNumber) <|> (Nothing <$ "old")
+  operand <- Just <$> (toWorryNumber <$> parseNumber) <|> (Nothing <$ "old")
   let operation = (operator, operand)
   void "\n  Test: divisible by "
   test <- parseNumber
@@ -51,28 +51,28 @@ parseMonkey = do
 newtype Modular = Modular Int
   deriving (Show)
 
-class FunnyNumber n where
-  modularAdd :: n -> n -> n
-  modularMul :: n -> n -> n
-  div3 :: n -> n
+class WorryNumber n where
+  add :: n -> n -> n
+  mul :: n -> n -> n
+  reduceWorryLevel :: n -> n
   isMod :: n -> Int -> Bool
-  toModular :: Int -> n
+  toWorryNumber :: Int -> n
 
-instance FunnyNumber Modular where
-  modularAdd (Modular a) (Modular b) = Modular (a + b)
+instance WorryNumber Modular where
+  add (Modular a) (Modular b) = Modular (a + b)
 
-  modularMul (Modular a) (Modular b) = Modular (a * b)
+  mul (Modular a) (Modular b) = Modular (a * b)
 
-  div3 (Modular m) = Modular (m`mod` (17* 3* 5* 7* 11* 19* 2* 13 * 23))
+  reduceWorryLevel (Modular m) = Modular (m`mod` (17* 3* 5* 7* 11* 19* 2* 13 * 23))
 
-  toModular = Modular
+  toWorryNumber = Modular
   isMod (Modular idx) n = idx `mod` n == 0
 
-instance FunnyNumber Int where
-  modularAdd = (+)
-  modularMul = (*)
-  div3 = (`div` 3)
-  toModular = id
+instance WorryNumber Int where
+  add = (+)
+  mul = (*)
+  reduceWorryLevel = (`div` 3)
+  toWorryNumber = id
   isMod a b = a `mod` b == 0
 
 -- * Monkey definition
@@ -99,10 +99,10 @@ data Operation = Add | Mul
 
 -- * FIRST problem
 
-round :: FunnyNumber n => Vector (MonkeyAttributes n) -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+round :: WorryNumber n => Vector (MonkeyAttributes n) -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
 round attrs status = foldl' (flip $ monkeyRound attrs) status [0 .. Vector.length attrs - 1]
 
-monkeyRound :: FunnyNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+monkeyRound :: WorryNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
 monkeyRound attrs monkeyNo status = do
   foldl' (processItem currentMonkey) status' items
   where
@@ -119,29 +119,29 @@ monkeyRound attrs monkeyNo status = do
     currentMonkey = attrs Vector.! monkeyNo
     items = reverse $ (status Vector.! monkeyNo).startingItems
 
-processItem :: FunnyNumber n => MonkeyAttributes n -> Vector (MonkeyStatus n) -> n -> Vector (MonkeyStatus n)
+processItem :: WorryNumber n => MonkeyAttributes n -> Vector (MonkeyStatus n) -> n -> Vector (MonkeyStatus n)
 processItem monkey status item = over (ix throwTo . #startingItems) (item' :) status
   where
-    item' = div3 (applyOp monkey.operation item)
+    item' = reduceWorryLevel (applyOp monkey.operation item)
     throwTo =
       if item' `isMod` monkey.test
         then monkey.ifTrue
         else monkey.ifFalse
 
-applyOp :: FunnyNumber n => (Operation, Maybe n) -> n -> n
+applyOp :: WorryNumber n => (Operation, Maybe n) -> n -> n
 applyOp (op, val') x = case op of
-  Add -> x `modularAdd` val
-  Mul -> x `modularMul` val
+  Add -> x `add` val
+  Mul -> x `mul` val
   where
     val = fromMaybe x val'
 
-nRounds :: FunnyNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
+nRounds :: WorryNumber n => Vector (MonkeyAttributes n) -> Int -> Vector (MonkeyStatus n) -> Vector (MonkeyStatus n)
 nRounds _attrs 0 status = status
 nRounds attrs n status = do
   let status' = Day11.round attrs status
   nRounds attrs (n - 1) status'
 
-solve :: forall n. FunnyNumber n => Int -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n)) -> Int
+solve :: forall n. WorryNumber n => Int -> (Vector (MonkeyAttributes n), Vector (MonkeyStatus n)) -> Int
 solve n (attrs, status) = product $ take 2 $ reverse $ sort $ Vector.toList $ fmap (.countOperations) $ nRounds attrs n status
 
 day = solve @Int 20
@@ -152,7 +152,7 @@ day' = solve @Modular 10000
 
 -- * Tests
 
-ex :: FunnyNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
+ex :: WorryNumber n => (Vector (MonkeyAttributes n), Vector (MonkeyStatus n))
 ex =
   parseContent
     [fmt|\
