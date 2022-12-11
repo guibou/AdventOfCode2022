@@ -12,6 +12,7 @@ import Day07
 import Day08
 import Day09
 import Day10
+import Day11
 
 import Weigh
 import Debug.Trace (traceMarkerIO)
