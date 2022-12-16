@@ -4,7 +4,6 @@
 module Day14 where
 
 import Data.List qualified
-import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Text.Megaparsec
 import Utils
