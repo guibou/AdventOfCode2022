@@ -73,7 +73,6 @@ executable alltests
     -Wno-missing-pattern-synonym-signatures -eventlog -rtsopts
     -finfo-table-map -fdistinct-constructor-tables
 
-  repl-options:       -interactive-print=Text.Pretty.Simple.pPrint
   build-depends:
     , ansi-terminal
     , base
