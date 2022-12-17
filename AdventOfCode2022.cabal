@@ -1,102 +1,129 @@
-cabal-version:       2.2
-name:                AdventOfCode2022
-version:             0.1.0.0
-synopsis:            Advent of code - Season 2022
-description:         Please see README.md
-homepage:            https://github.com/guibou/AdventOfCode2022#readme
-license:             BSD-3-Clause
-license-file:        LICENSE
-author:              Guillaume Bouchard
-maintainer:          guillaum.bouchard@gmail.com
-copyright:           2022 Guillaume Bouchard
-category:            Web
-build-type:          Simple
-extra-source-files:  README.md
+cabal-version:      2.2
+name:               AdventOfCode2022
+version:            0.1.0.0
+synopsis:           Advent of code - Season 2022
+description:        Please see README.md
+homepage:           https://github.com/guibou/AdventOfCode2022#readme
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Guillaume Bouchard
+maintainer:         guillaum.bouchard@gmail.com
+copyright:          2022 Guillaume Bouchard
+category:           Web
+build-type:         Simple
+extra-source-files: README.md
 
 executable alltests
-           main-is: MainAll.hs
-           hs-source-dirs: src
-           other-modules:     All, Utils, Path, Day01, Day02, Day03, Day04, Day05, Day06, Day07, Day08, Day09, Day10, Day11, Day12, Day13, Day14, Day15, Day16
+  main-is:            MainAll.hs
+  hs-source-dirs:     src
+  other-modules:
+    All
+    Day01
+    Day02
+    Day03
+    Day04
+    Day05
+    Day06
+    Day07
+    Day08
+    Day09
+    Day10
+    Day11
+    Day12
+    Day13
+    Day14
+    Day15
+    Day16
+    Path
+    Utils
 
-           build-depends:
-               base
-               , text
-               , weigh
-  default-extensions: TupleSections
-                    , DeriveAnyClass
-                    , StandaloneDeriving
-                    , DeriveGeneric
-                    , OverloadedStrings
-                    , BangPatterns
-                    , ViewPatterns
-                    , PatternSynonyms
-                    , ScopedTypeVariables
-                    , BinaryLiterals
-                    , TemplateHaskell
-                    , PartialTypeSignatures
-                    , QuasiQuotes
-                    , GeneralizedNewtypeDeriving
-                   , DerivingStrategies
-                    , FlexibleContexts
-                    , LambdaCase
-                    , TypeApplications
-                    , NamedFieldPuns
-                    , MultiWayIf
-                    , GHC2021
-  ghc-options: -Wall -Wno-missing-signatures -fwarn-incomplete-uni-patterns -Wno-missing-home-modules -Wno-deprecations -Wno-partial-type-signatures -O2 -Wno-missing-pattern-synonym-signatures -eventlog -rtsopts -finfo-table-map -fdistinct-constructor-tables
-  repl-options: -interactive-print=Text.Pretty.Simple.pPrint
+  build-depends:
+    , base
+    , text
+    , weigh
 
-  build-depends:       base,
-                       hspec,
-                       megaparsec,
-                       cryptohash,
-                       base16-bytestring,
-                       bytestring,
-                       containers,
-                       parallel,
-                       time,
-                       vector,
-                       file-embed,
-                       unordered-containers,
-                       template-haskell,
-                       memoize,
-                       split,
-                       here,
-                       relude,
-                       text,
-                       union-find,
-                       hex,
-                       matrix,
-                       hashable,
-                       mtl,
-                       generic-deriving,
-                       JuicyPixels,
-                       pqueue,
-                       random,
-                       -- sbv,
-                       PyF,
-                       ansi-terminal,
-                       linear,
-                       weigh,
-                       besout,
-                       lens,
-                       generic-lens,
-                       QuickCheck,
-                       parser-combinators,
-                       Earley,
-                       monoidal-containers,
-                       pretty-simple,
-                       monad-memo,
-                       optics-core,
-                       directory,
-                       process
+  default-extensions:
+    BangPatterns
+    BinaryLiterals
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    FlexibleContexts
+    GeneralizedNewtypeDeriving
+    LambdaCase
+    MultiWayIf
+    NamedFieldPuns
+    OverloadedRecordDot
+    OverloadedStrings
+    PartialTypeSignatures
+    PatternSynonyms
+    QuasiQuotes
+    ScopedTypeVariables
+    StandaloneDeriving
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    ViewPatterns
+    GHC2021
+
+  ghc-options:
+    -Wall -Wno-missing-signatures -fwarn-incomplete-uni-patterns
+    -Wno-missing-home-modules -Wno-deprecations
+    -Wno-partial-type-signatures -O2
+    -Wno-missing-pattern-synonym-signatures -eventlog -rtsopts
+    -finfo-table-map -fdistinct-constructor-tables
+
+  repl-options:       -interactive-print=Text.Pretty.Simple.pPrint
+  build-depends:
+    , ansi-terminal
+    , base
+    , base16-bytestring
+    , besout
+    , bytestring
+    , containers
+    , cryptohash
+    , directory
+    , Earley
+    , file-embed
+    , generic-deriving
+    , generic-lens
+    , hashable
+    , here
+    , hex
+    , hspec
+    , JuicyPixels
+    , lens
+    , linear
+    , matrix
+    , megaparsec
+    , memoize
+    , monad-memo
+    , monoidal-containers
+    , mtl
+    , optics-core
+    , parallel
+    , parser-combinators
+    , pqueue
+    , pretty-simple
+    , process
+    , PyF
+    , QuickCheck
+    , random
+    , relude
+    , split
+    , template-haskell
+    , text
+    , time
+    , union-find
+    , unordered-containers
+    , vector
+    , weigh
+
+  -- sbv,
   -- Set relude (with extra) as the default prelude
-  mixins: base hiding (Prelude)
-        , relude (Relude as Prelude
-                 , Relude.Extra
-                 , Relude.Unsafe
-                 )
-
+  mixins:
+    base hiding (Prelude),
+    relude (Relude as Prelude, Relude.Extra, Relude.Unsafe)
 
 source-repository head
   type:     git
