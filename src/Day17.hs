@@ -71,17 +71,22 @@ moveBlock world rock rockPos dPos
     newPos = dPos rockPos
     rockSet = toWorldSet rock newPos
 
-solve nbBlocks initActions = startRockFall 0 mempty 0 0
+solve nbBlocks initActions = startRockFall stopCriterionA (0 :: Int) mempty 0 0
   where
     actionsV = Vector.fromList initActions
 
-    startRockFall falledBlocks world _ _
-      | Just maxBlocks <- nbBlocks, maxBlocks == falledBlocks = [world]
-      -- | isCompleteFloor world && falledBlocks > 0 = [Set.fromList [V2 0 falledBlocks]]
-    startRockFall falledBlocks world rockId actionId = do
+    stopCriterionA falledBlocks _world
+      | Just maxBlocks <- nbBlocks = maxBlocks == falledBlocks
+      | otherwise = False
+
+    stopCriterionB falledBlocks world = isCompleteFloor world && falledBlocks > 0
+
+    startRockFall stopCriterion falledBlocks world rockId actionId
+      | stopCriterion falledBlocks world = (world, rockId, actionId, falledBlocks)
+    startRockFall stopCriterion falledBlocks world rockId actionId = do
       let rock = rocksPatterns Vector.! rockId
       let (world', nextActionsId) = fallARock actionsV world rock actionId
-      startRockFall (falledBlocks + 1) world' ((rockId + 1) `mod` Vector.length rocksPatterns) nextActionsId
+      startRockFall stopCriterion (falledBlocks + 1) world' ((rockId + 1) `mod` Vector.length rocksPatterns) nextActionsId
 
 fallARock actionsV world rock actionId = applyActionBlock startingRockPos actionId
   where
@@ -119,7 +124,7 @@ findFirstCompleteFloor n actions l = findIndex f (Set.empty : l)
       Set.size at_y >= (7 - n)
 
 day :: _ -> Int
-day actions = Data.List.maximum ((\(V2 _ y) -> y) <$> Set.toList (Relude.Unsafe.last (solve (Just 2022) actions))) + 1
+day actions = (Data.List.maximum ((\(V2 _ y) -> y) <$> Set.toList ((\(x, _, _, _) -> x) $ solve (Just 2022) actions))) + 1
 
 -- * SECOND problem
 
