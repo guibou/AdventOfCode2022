@@ -82,6 +82,16 @@ day' sensors = Relude.Unsafe.head $ do
   let x = missingVal ranges
   pure (x * 4_000_000 + y)
 
+day'' sensors = do
+  s <- sensors
+  let safeDist = dist s.posSensor s.posBeacon
+  [
+    s.posSensor + V2 0 (safeDist + 1),
+    s.posSensor - V2 0 (safeDist + 1),
+    s.posSensor - V2 (safeDist + 1) 0,
+    s.posSensor + V2 (safeDist + 1) 0
+   ]
+
 missingVal (Range _a b : _) = b + 1
 
 concatenateRanges :: [Range] -> [Range]
