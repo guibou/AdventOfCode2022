@@ -43,7 +43,7 @@ transition m (x, y) = do
 -- * FIRST problem
 
 day :: _ -> Maybe Int
-day ((start, end), m) = fst <$> shortestPath (transition m) (+) start end
+day ((start, end), m) = fst <$> shortestPath (transition m) (+) start (end==)
 
 -- * SECOND problem
 
@@ -52,7 +52,7 @@ day' ((_, end), m) =
   let paths = shortestPathAll (transition (fmap negate m)) (+) end
    in Data.List.minimum $
         mapMaybe
-          (\(start :: (Int, Int)) -> fst <$> paths start)
+          (\(start :: (Int, Int)) -> fst <$> paths (start==))
           (Map.keys $ Map.filter (== ord 'a') m)
 
 -- * Tests

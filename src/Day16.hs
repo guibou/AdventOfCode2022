@@ -83,7 +83,7 @@ makeASmallerGraph valves = allPaths
       (v0, vs) <- select $ (ValveId "AA" : valveWithFlow valves)
       (v1, _) <- select vs
 
-      let Just (weight, _) = shortestPath transition (+) v0 v1
+      let Just (weight, _) = shortestPath transition (+) v0 (v1==)
       pure (v0, [(v1, weight)])
 
 graphIt valves = do

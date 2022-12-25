@@ -15,7 +15,7 @@ dijkstra ::
   => (v -> [(w, v)]) -- ^ transition function frow vertex *v* to new vertices associated with weight *w*.
   -> (w -> w -> w) -- ^ weight combination function, usually (+) for distances
   -> v -- ^ starting vertex
-  -> Maybe v -- ^ end vertex
+  -> Maybe (v -> Bool) -- ^ end vertex
   -> HashMap v (w, v) -- ^ associate a vertex *v* with its weight from the starting vertex and its previous vertex
 dijkstra getNext combineWeight start endM = go (Queue.singleton 0 start) HashMap.empty HashSet.empty
   where
@@ -25,7 +25,7 @@ dijkstra getNext combineWeight start endM = go (Queue.singleton 0 start) HashMap
         Nothing -> prevs
         Just ((w, currentPoint), queue')
           -- shortcut computation if we are looking for the final point only
-          | Just end <- endM, currentPoint == end -> prevs
+          | Just endF <- endM, endF currentPoint -> prevs
           | currentPoint `HashSet.member` done -> go queue' prevs done
           | otherwise ->
             let
@@ -48,11 +48,11 @@ shortestPath ::
   => (v -> [(w, v)]) -- ^ transition function frow vertex *v* to new vertices associated with weight *w*.
   -> (w -> w -> w) -- ^ weight combination function, usually (+) for distances
   -> v -- ^ starting vertex
-  -> v -- ^ ending vertex
+  -> (v -> Bool) -- ^ ending function
   -> Maybe (w, [v]) -- ^ the list of vertices of the path associated with the weight
-shortestPath getNext combineWeight start end = let
-  d = dijkstra getNext combineWeight start (Just end)
-  in buildPath start end d
+shortestPath getNext combineWeight start endF = let
+  d = dijkstra getNext combineWeight start (Just endF)
+  in buildPath start (endF) d
 
 -- | Find the shortest paths between two nodes.
 -- This function can be more efficient than `shortestPath` if you want
@@ -67,7 +67,7 @@ shortestPathAll ::
   => (v -> [(w, v)]) -- ^ transition function frow vertex *v* to new vertices associated with weight *w*.
   -> (w -> w -> w) -- ^ weight combination function, usually (+) for distances
   -> v -- ^ starting vertex
-  -> v -- ^ ending vertex
+  -> (v -> Bool) -- ^ ending vertex
   -> Maybe (w, [v]) -- ^ the list of vertices of the path associated with the weight
 shortestPathAll getNext combineWeight start = let
   d = dijkstra getNext combineWeight start Nothing
@@ -76,14 +76,14 @@ shortestPathAll getNext combineWeight start = let
 buildPath ::
   (Hashable v, Show w, Ord v, Ord w, Num w)
   => v -- ^ starting vertex
-  -> v -- ^ ending vertex
+  -> (v -> Bool) -- ^ ending vertex
   -> HashMap v (w, v) -- ^ result of *dijkstra*
   -> Maybe (w, [v]) -- ^ resulting path with its weight
-buildPath start end d
-  | start == end = Just (0, [])
-  | otherwise = case HashMap.lookup end d of
+buildPath start endF d
+  | endF start = Just (0, [])
+  | otherwise = case find (\(v, _) -> endF v) (HashMap.toList d) of
   Nothing -> Nothing
-  Just (w, _prev) -> Just (w, go end [])
+  Just (end, (w, _prev)) -> Just (w, go end [])
     where
       go current acc
         | current == start = acc
