@@ -152,9 +152,9 @@ test = do
       day' ex `shouldBe` 54
   describe "works" $ do
     it "on first star" $ do
-      (day fileContent - 1) `shouldBe` 288
+      day fileContent `shouldBe` 288
     it "on second star" $ do
-      (day' fileContent - 1) `shouldBe` 861
+      day' fileContent `shouldBe` 861
 
 getBounds = foldl' (liftA2 max) (V2 0 0)
 

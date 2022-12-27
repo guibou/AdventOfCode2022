@@ -8,6 +8,7 @@ where
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
 import qualified Data.PQueue.Prio.Min as Queue
+import Data.Foldable (minimumBy)
 
 -- | find the shortest path in a graph
 dijkstra ::
@@ -81,9 +82,11 @@ buildPath ::
   -> Maybe (w, [v]) -- ^ resulting path with its weight
 buildPath start endF d
   | endF start = Just (0, [])
-  | otherwise = case find (\(v, _) -> endF v) (HashMap.toList d) of
-  Nothing -> Nothing
-  Just (end, (w, _prev)) -> Just (w, go end [])
+  | otherwise = case filter (\(v, _) -> endF v) (HashMap.toList d) of
+                  [] -> Nothing
+                  l -> let
+                      (end, (w, _prev)) = minimumBy (comparing (fst . snd)) l
+                               in Just (w, go end [])
     where
       go current acc
         | current == start = acc
