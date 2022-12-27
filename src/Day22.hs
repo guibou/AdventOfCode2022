@@ -1,5 +1,8 @@
 -- start 14:02
 -- first at 15:03
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Day22 where
 
 import Data.List (maximum, minimum)
@@ -36,7 +39,7 @@ parseInstruction = (Forward <$> parseNumber) <|> (Rotate <$> (("L" $> CounterClo
 data Space = Wall | Free
   deriving (Show, Ord, Eq)
 
-data Facing = R | U | L | D deriving (Show, Enum, Bounded, Eq)
+data Facing = R | U | L | D deriving (Show, Enum, Bounded, Eq, Ord)
 
 data Rotation = ClockWise | CounterClockWise deriving (Show)
 
@@ -121,69 +124,157 @@ scoreFacing D = 1
 scoreFacing L = 2
 scoreFacing U = 3
 
-day' = score . solve wrapCube
+day' mapping = score . solve (wrapCube mapping)
 
+mapCubeCoord cubeSize (minorGridX, minorGridY) from to =
+  case (from, to) of
+    -- R
+    (R, R) -> (0, minorGridY)
+    (R, U) -> (minorGridY, border)
+    (R, D) -> (border - minorGridY, 0)
+    (R, L) -> (border, border - minorGridY)
+    -- L
+    (L, L) -> (border, minorGridY)
+    (L, R) -> (0, border - minorGridY)
+    (L, U) -> (border - minorGridY, border)
+    (L, D) -> (minorGridY, 0)
+    -- U
+    (U, U) -> (minorGridX, border)
+    (U, D) -> (border - minorGridX, 0)
+    (U, R) -> (0, minorGridX)
+    (U, L) -> (border, border - minorGridX)
+    -- D
+    (D, D) -> (minorGridX, 0)
+    (D, U) -> (border - minorGridX, border)
+    (D, L) -> (border, minorGridX)
+    (D, R) -> (0, border - minorGridX)
+  where
+    border = cubeSize - 1
 
-wrapCube :: Map (V2 Int) b -> (V2 Int, Facing) -> (Facing, V2 Int)
-wrapCube grid (pos@(V2 y x), facing) = nextPos
+wrapCube :: Mapping -> Map (V2 Int) b -> (V2 Int, Facing) -> (Facing, V2 Int)
+wrapCube Mapping {..} grid (pos@(V2 y x), facing) = nextPos
   where
     cubeSize = sqrtInt (Map.size grid `div` 6)
     (majorGridX, minorGridX) = x `divMod` cubeSize
     (majorGridY, minorGridY) = y `divMod` cubeSize
+    (-->) = mapCubeCoord cubeSize (minorGridX, minorGridY)
 
     toCube cubeId (miX, miY) = V2 (mgY * cubeSize + miY) (mgX * cubeSize + miX)
       where
-        (mgX, mgY) = case cubeId :: Int of
-                       1 -> (2, 0)
-                       2 -> (0, 1)
-                       3 -> (1, 1)
-                       4 -> (2, 1)
-                       5 -> (2, 2)
-                       6 -> (3, 2)
-                       _ -> error "Wrong cube Id" 
+        (mgX, mgY) = toFaceCube cubeId
 
-    nextPos = case traceShowId (majorGridX, majorGridY) of
-      (2, 0) ->
-        -- case 1
-        case facing of
-          U -> (D, toCube 2 (cubeSize - 1 - minorGridX, 0))
-          L -> (D, toCube 3 (minorGridY, 0))
-          R -> (L, toCube 6 (minorGridX, cubeSize - minorGridY - 1))
-          _ -> error "Impossible"
-      (0, 1) -> 
-        -- case 2
-        case facing of
-                 U -> (D, toCube 1 (cubeSize - 1 - minorGridX, 0))
-                 D -> (U, toCube 2 (cubeSize - 1 - minorGridX , cubeSize - 1))
-                 L -> error "Not done yet"
-                 _ -> error "Impossible"
+    nextPos =
+      let (nextCube, nextFacing) = (mapping Map.! (toCubeFace (majorGridX, majorGridY))) Map.! facing
+       in (nextFacing, toCube nextCube (facing --> nextFacing))
 
-      (1, 1) -> 
-        -- case 3
-        case facing of
-                 U -> (R, toCube 1 (0, minorGridX))
-                 D -> (R, toCube 5 (0, cubeSize - 1 - minorGridY))
-                 _ -> error "Impossible"
-      (2, 1) ->
-        -- 4
-        case facing of
-          R -> (D, toCube 6 (cubeSize - minorGridY - 1, 0))
-          _ -> error "Impossible"
-      (2, 2) -> 
-        -- 5
-        case facing of
-          L -> (U, toCube 3 (cubeSize - minorGridX - 1, cubeSize - 1))
-          D -> (U, toCube 2 (cubeSize - 1 - minorGridX , cubeSize - 1))
-          _ -> error "Impossible"
-      (3, 2) -> 
-        -- 6
-        case facing of
-                 U -> (L, toCube 4 (cubeSize - 1, cubeSize - 1 - minorGridX))
-                 L -> error "Impossile"
-                 R -> (L, toCube 1 (cubeSize - 1, cubeSize - 1 - minorGridY))
-                 D -> error "Not done yet"
+data Mapping = Mapping
+  { toCubeFace :: (Int, Int) -> Int,
+    toFaceCube :: Int -> (Int, Int),
+    mapping :: Map Int (Map Facing (Int, Facing))
+  }
 
-      _ -> error $ "Case of major grid impossible: " <> show (pos, (majorGridX, majorGridY))
+-- This is the mapping for the example
+--
+--         1111
+--         1111
+--         1111
+--         1111
+-- 222233334444
+-- 222233334444
+-- 222233334444
+-- 222233334444
+--         55556666
+--         55556666
+--         55556666
+--         55556666
+--
+mappingExample =
+  Mapping
+    { mapping =
+        [ ( 1,
+            [ (U, (2, D)),
+              (L, (3, D)),
+              (R, (6, D))
+            ]
+          ),
+          ( 2,
+            [ (U, (1, D)),
+              (D, (2, U))
+            ]
+          ),
+          ( 3,
+            [ (U, (1, R)),
+              (D, (5, R))
+            ]
+          ),
+          (4, [(R, (6, D))]),
+          (5, [(L, (3, U)), (D, (2, U))]),
+          (6, [(U, (4, L)), (R, (1, L))])
+        ],
+      toCubeFace = \case
+        (2, 0) -> 1
+        (0, 1) -> 2
+        (1, 1) -> 3
+        (2, 1) -> 4
+        (2, 2) -> 5
+        (3, 2) -> 6,
+      toFaceCube = \case
+        1 -> (2, 0)
+        2 -> (0, 1)
+        3 -> (1, 1)
+        4 -> (2, 1)
+        5 -> (2, 2)
+        6 -> (3, 2)
+    }
+
+-- This is the mapping of my puzzle input
+--  12
+--  3
+-- 45
+-- 6
+
+mappingPuzzleInput =
+  Mapping
+    { mapping =
+        [ ( 1,
+            [ (U, (6, R)),
+              (L, (4, R))
+            ]
+          ),
+          ( 2,
+            [(U, (6, U)), (R, (5, L)), (D, (3, L))]
+          ),
+          ( 3,
+            [(L, (4, D)), (R, (2, U))]
+          ),
+          ( 4,
+            [(L, (1, R)), (U, (3, R))]
+          ),
+          ( 5,
+            [(R, (2, L)), (D, (6, L))]
+          ),
+          ( 6,
+            [ (L, (1, D)),
+              (R, (5, U)),
+              (D, (2, D))
+            ]
+          )
+        ],
+      toCubeFace = \case
+        (1, 0) -> 1
+        (2, 0) -> 2
+        (1, 1) -> 3
+        (0, 2) -> 4
+        (1, 2) -> 5
+        (0, 3) -> 6,
+      toFaceCube = \case
+        1 -> (1, 0)
+        2 -> (2, 0)
+        3 -> (1, 1)
+        4 -> (0, 2)
+        5 -> (1, 2)
+        6 -> (0, 3)
+    }
 
 -- * Tests
 
@@ -216,9 +307,9 @@ test = do
     it "of first star" $ do
       day ex `shouldBe` 6032
     it "of second star" $ do
-      day' ex `shouldBe` 5031
+      day' mappingExample ex `shouldBe` 5031
   describe "works" $ do
     it "on first star" $ do
       day fileContent `shouldBe` 123046
     it "on second star" $ do
-      day' fileContent `shouldBe` 1238
+      day' mappingPuzzleInput fileContent `shouldBe` 195032
