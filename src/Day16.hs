@@ -2,19 +2,15 @@
 -- start: 21:33
 -- first star: 00:18
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Redundant $" #-}
 
 module Day16 (test) where
 
-import Data.List qualified
+import Data.List (maximum)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Path (shortestPath)
 import Text.Megaparsec
 import Utils
-import System.IO.Unsafe (unsafePerformIO)
 
 fileContent :: _
 fileContent = parseContent $(getFile)
@@ -45,7 +41,7 @@ parseValveId = (\a b -> ValveId [a, b]) <$> anySingle <*> anySingle
 
 newtype ValveId = ValveId {unId :: String}
   deriving stock (Show, Ord, Eq)
-  deriving newtype (Hashable, Memoizable)
+  deriving newtype (Hashable, Memoizable, NFData)
 
 data Valve = Valve
   { name :: ValveId,
@@ -83,7 +79,7 @@ makeASmallerGraph valves = allPaths
       (v0, vs) <- select $ (ValveId "AA" : valveWithFlow valves)
       (v1, _) <- select vs
 
-      let Just (weight, _) = shortestPath transition (+) v0 (v1==)
+      let Just (weight, _) = shortestPath transition (+) v0 (v1 ==)
       pure (v0, [(v1, weight)])
 
 graphIt valves = do
@@ -105,81 +101,60 @@ graphIt' valves = do
         putStrLn [fmt|{unId valveId} <-> {unId valveIdB} [label={cost}]|]
   putStrLn "}"
 
-solve (makeASmallerGraph -> valves) = go (ValveId "AA") (Set.singleton (ValveId "AA")) 0
+solve :: _
+solve maxMinutes (makeASmallerGraph -> valves) = go (ValveId "AA") (Set.singleton (ValveId "AA")) 0
   where
     go currentValve visited cost = do
-      let nextValves = filter (\(name, _) -> name `Set.notMember` visited) $ valves Map.! currentValve
+      let nextValves = filter (\(name, _) -> name `Set.notMember` visited) $ valves `mapIndex` currentValve
       if null nextValves
         then pure []
         else do
           (nextValve, nextCost) <- nextValves
           let newCost = cost + nextCost + 1
-          if newCost > 30
+          if newCost > maxMinutes
             then pure []
             else ((nextValve, newCost) :) <$> go nextValve (Set.insert currentValve visited) newCost
 
-weightPath :: Int -> Map _ _ -> _ -> Int
-weightPath maxMinute valves path = finalAccum + (maxMinute - finalMinute) * (pressurePerMinute finalOpened)
+weightPath :: Int -> Map ValveId Valve -> [(ValveId, Int)] -> Int
+weightPath maxMinute valves path = finalAccum + (maxMinute - finalMinute) * pressurePerMinute finalOpened
   where
     (finalAccum, finalOpened, finalMinute) = foldl' f (0, mempty, 0) path
-    pressurePerMinute openedValves = sum (map (\vId -> (valves Map.! vId).flowRate) (Set.toList openedValves))
+    pressurePerMinute openedValves = sum (map (\vId -> (valves `mapIndex` vId).flowRate) (Set.toList openedValves))
     f (accumPressure, openedValves, previousMinute) (valve, activationMinute) =
-      let 
-          minutes = activationMinute - previousMinute
-          
+      let minutes = activationMinute - previousMinute
        in (accumPressure + pressurePerMinute openedValves * minutes, Set.insert valve openedValves, activationMinute)
 
 -- * SECOND problem
 
+buildSimpleSolutions :: Int -> _ -> [[(ValveId, Int)]] -> _
+buildSimpleSolutions maxMinutes valves l = Map.fromListWith max $ do
+  longPath <- l
+  shortenedVersion <- inits longPath
+
+  let w = weightPath maxMinutes valves shortenedVersion
+  let fingerPrint = Set.fromList (map fst shortenedVersion)
+
+  pure (fingerPrint, w)
+
+mapIndex :: (Ord k, PyFToString k) => Map k v -> k -> v
+mapIndex m i = case Map.lookup i m of
+  Nothing -> error [fmt|Index {i:s} was not found in map|]
+  Just v -> v
+
 day :: _ -> Int
-day valves = Data.List.maximum $ map (weightPath 30 valves) $ solve valves
+day valves = Data.List.maximum $ map (weightPath 30 valves) $ solve 30 valves
 
-solve' (makeASmallerGraph -> valves) = go (ValveId "AA", ValveId "AA") ([ValveId "AA"]) (0, 0)
-  where
-    go = memoFix3 go'
-    go' recCall currentValves (Set.fromList -> visited) currentCosts =
-      let motionMe = nextMotion valves visited currentValves currentCosts
-          motionElephant = map swapFirst (nextMotion valves visited (swap currentValves) (swap currentCosts))
-          motions = motionMe <> motionElephant
-       in do
-            if null motions
-              then pure []
-              else do
-                ((nextValves, nextCosts), nextVisited) <- motions
-                ((nextValves, nextCosts) :) <$> recCall nextValves (Set.toList nextVisited) nextCosts
+day' :: _
+day' valves = maximum $ do
+  let (force -> !ss) = Map.toList $ buildSimpleSolutions 26 valves (solve 26 valves)
+  ((s0, w0), ss') <- select ss
+  (s1, w1) <- ss'
 
-swapFirst ((a, b), v) = ((swap a, swap b), v)
+  guard $ s0 `Set.disjoint` s1
 
-nextMotion valves visited (currentValve, otherValve) (cost, otherCost) = do
-  let nextValves = filter (\(name, _) -> name `Set.notMember` visited) $ valves Map.! currentValve
-  if null nextValves
-    then []
-    else do
-      (nextValve, nextCost) <- nextValves
-      let newCost = cost + nextCost + 1
-      if newCost > 26
-        then []
-        else pure (((nextValve, otherValve), (newCost, otherCost)), Set.insert nextValve visited)
+  pure (w0 + w1)
 
-weightPath' valves path = weightPath 26 valves (map f path) + weightPath 26 valves (map f' path)
 
-f ((a, b), (c, d)) = (a, c)
-f' ((a, b), (c, d)) = (b, d)
-
-cache = unsafePerformIO (newIORef 0)
-{-# NOINLINE cache #-}
-
-traceBigger :: Int -> Int
-traceBigger n = unsafePerformIO $ do
-  curN <- readIORef cache
-  if n > curN
-     then do
-       putStrLn (show n)
-       writeIORef cache n
-       pure n
-      else pure n
-
-day' valves = Data.List.maximum $ map (traceBigger . weightPath' valves) $ solve' valves
 -- * Tests
 
 ex =
@@ -207,9 +182,8 @@ test = do
   describe "works" $ do
     it "on first star" $ do
       day fileContent `shouldBe` 1906
-    -- It is way too slow, but it works
-    -- it "on second star" $ do
-    --   day' fileContent `shouldBe` 2548
+    it "on second star" $ do
+      day' fileContent `shouldBe` 2548
 
 -- 2142 is too low
 -- 2266 too low
