@@ -6,7 +6,7 @@
   outputs = { self, nixpkgs, flake-utils}:
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = nixpkgs.legacyPackages.${system};
-          hPkgs = pkgs.haskell.packages.ghc92;
+          hPkgs = pkgs.haskellPackages;
       in
       with pkgs.haskell.lib;
       rec {
@@ -15,7 +15,6 @@
             root = ./.;
             overrides = self: super:
               {
-                PyF = super.PyF_0_11_1_0;
                 besout = unmarkBroken (doJailbreak super.besout);
               };
           });
