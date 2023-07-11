@@ -36,6 +36,7 @@ executable alltests
     Day16
     Day17
     Day18
+    Day19
     Day20
     Day21
     Day22
@@ -80,6 +81,8 @@ executable alltests
     -Wno-partial-type-signatures -O2
     -Wno-missing-pattern-synonym-signatures -eventlog -rtsopts
     -finfo-table-map -fdistinct-constructor-tables
+    -threaded
+    -with-rtsopts=-N
 
   build-depends:
     , ansi-terminal
@@ -125,6 +128,7 @@ executable alltests
     , unordered-containers
     , vector
     , weigh
+    , array
 
   -- sbv,
   -- Set relude (with extra) as the default prelude
